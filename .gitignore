@@ -3,3 +3,5 @@ train/
 val/
 images/
 masks/
+.vscode/
+__pycache__/
