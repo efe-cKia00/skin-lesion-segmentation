@@ -34,14 +34,21 @@ class SegmentationDatasets(Dataset):
         return image, mask
     
 
-# Custom Albumentations transform to threshold mask to binary values
-class BinaryMaskThreshold(A.ImageOnlyTransform):
-    def __init__(self, threshold=0.5, always_apply=False, p=1.0):
-        super(BinaryMaskThreshold, self).__init__(always_apply, p)
+# Custom Albumentations transform to normalize mask to binary [0, 1] values
+class NormalizeMask(A.DualTransform):
+    """Normalize mask to binary values [0, 1] by thresholding at 0.5"""
+    def __init__(self, threshold=127.5, always_apply=False, p=1.0):
+        super(NormalizeMask, self).__init__(always_apply, p)
         self.threshold = threshold
     
     def apply(self, img, **params):
-        return (img > self.threshold).astype(np.float32)
+        # Don't modify the image
+        return img
+    
+    def apply_to_mask(self, mask, **params):
+        # Normalize mask: if values > threshold, set to 1.0, else 0.0
+        # threshold=127.5 works for 0-255 range
+        return (mask > self.threshold).astype(np.float32)
     
     def get_transform_init_args_names(self):
         return ("threshold",)
@@ -59,13 +66,13 @@ train_transform = A.Compose([
     # 2. Pixel-level Transforms (Only applied to Image)
     A.RandomBrightnessContrast(p=0.2),
 
-    # 3. Normalization (Image only, mask handled separately)
+    # 3. Normalization (Image only)
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     
-    # 4. Threshold mask to binary and convert to tensor
-    A.Compose([
-        BinaryMaskThreshold(threshold=0.5, p=1.0)
-    ], is_check_shapes=False),
+    # 4. Normalize mask to binary [0, 1] values
+    NormalizeMask(threshold=127.5, p=1.0),
+    
+    # 5. Convert to tensor
     ToTensorV2(),
 ], is_check_shapes=False)
 
@@ -73,8 +80,6 @@ train_transform = A.Compose([
 val_transform = A.Compose([
     A.Resize(256, 256),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    A.Compose([
-        BinaryMaskThreshold(threshold=0.5, p=1.0)
-    ], is_check_shapes=False),
+    NormalizeMask(threshold=127.5, p=1.0),
     ToTensorV2(),
 ], is_check_shapes=False)
