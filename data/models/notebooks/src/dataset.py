@@ -24,35 +24,28 @@ class SegmentationDatasets(Dataset):
 
         # Load as PIL images and convert to numpy arrays
         image = np.array(Image.open(img_path).convert("RGB"))  # RGB for images
-        mask = np.array(Image.open(mask_path).convert("L"))    # Grayscale for masks
+        mask = np.array(Image.open(mask_path).convert("L"))    # Grayscale for masks, 0-255
 
         if self.transform:
             transformed = self.transform(image=image, mask=mask)
             image = transformed['image']
             mask = transformed['mask']
+        
+        # IMPORTANT: Normalize mask to binary [0, 1] AFTER transform pipeline
+        # This ensures the mask is always in the correct range regardless of transform
+        import torch
+        if isinstance(mask, torch.Tensor):
+            # If already a tensor, threshold at 0.5 (works for both [0,1] and [0,255])
+            mask = (mask > 0.5).float()
+            # Ensure mask has shape [1, H, W]
+            if mask.dim() == 2:
+                mask = mask.unsqueeze(0)
+        else:
+            # If still numpy, convert and normalize
+            mask = (mask > 127.5).astype(np.float32)
 
         return image, mask
     
-
-# Custom Albumentations transform to normalize mask to binary [0, 1] values
-class NormalizeMask(A.DualTransform):
-    """Normalize mask to binary values [0, 1] by thresholding at 0.5"""
-    def __init__(self, threshold=127.5, always_apply=False, p=1.0):
-        super(NormalizeMask, self).__init__(always_apply, p)
-        self.threshold = threshold
-    
-    def apply(self, img, **params):
-        # Don't modify the image
-        return img
-    
-    def apply_to_mask(self, mask, **params):
-        # Normalize mask: if values > threshold, set to 1.0, else 0.0
-        # threshold=127.5 works for 0-255 range
-        return (mask > self.threshold).astype(np.float32)
-    
-    def get_transform_init_args_names(self):
-        return ("threshold",)
-
 
 # Define the transform pipeline
 train_transform = A.Compose([
@@ -61,7 +54,7 @@ train_transform = A.Compose([
     A.HorizontalFlip(p=0.5),
     A.VerticalFlip(p=0.5),
     A.RandomRotate90(p=0.5),
-    A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.2),
+    A.ElasticTransform(alpha=1, sigma=50, p=0.2),
 
     # 2. Pixel-level Transforms (Only applied to Image)
     A.RandomBrightnessContrast(p=0.2),
@@ -69,10 +62,8 @@ train_transform = A.Compose([
     # 3. Normalization (Image only)
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     
-    # 4. Normalize mask to binary [0, 1] values
-    NormalizeMask(threshold=127.5, p=1.0),
-    
-    # 5. Convert to tensor
+    # 4. Convert to tensor
+    # Note: Mask normalization happens in __getitem__ after transforms
     ToTensorV2(),
 ], is_check_shapes=False)
 
@@ -80,6 +71,6 @@ train_transform = A.Compose([
 val_transform = A.Compose([
     A.Resize(256, 256),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    NormalizeMask(threshold=127.5, p=1.0),
+    # Note: Mask normalization happens in __getitem__ after transforms
     ToTensorV2(),
 ], is_check_shapes=False)
