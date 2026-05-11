@@ -1,4 +1,4 @@
-name: asl-mlp-cs425
+name: dl-sls
 channels:
   - defaults
 dependencies:
