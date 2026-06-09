@@ -38,10 +38,10 @@ The dataset can be downloaded at: [ISIC 2018 Dataset](https://challenge.isic-arc
 ## Project Structure
 
 ```
-deeplearning-skin-lession-segmentation/
+skin-lession-segmentation/
 ├── README.md                                         # This file
 ├── environment.yml                                   # Conda environment specification (If using conda)
-├── requirements.txt                                  # Python requirements for Google Colab ONLY
+├── requirements.txt                                  # Python requirements
 ├── LICENSE.txt                                       # Project and dataset license
 ├── ATTRIBUTION.txt                                   # Dataset attribution
 │
@@ -56,16 +56,16 @@ deeplearning-skin-lession-segmentation/
 │   │   ├── images/                                   # 1,000 test images
 │   │   └── masks/                                    # 1,000 test masks
 │   └── models/
+│       ├── best_model.pth                            # Trained model weights
 │       └── notebooks/
-│           ├── unet_rn34_pipeline.ipynb              # Main training & evaluation notebook
-│           ├── best_model.pth                        # Trained model weights
+│           ├── unet_rn34_pipeline.ipynb              # Main training & evaluation notebook                        
 │           └── src/
 │               ├── dataset.py                        # SegmentationDatasets class
 │               ├── loss.py                           # DiceLoss & BCEWithDiceLoss
 │               ├── metrics.py                        # Evaluation metrics
 │               └── utils.py                          # Utility functions
 │
-└── outputs/
+└── train_out/
     ├── training_history.json                         # Training loss/metrics per epoch
     ├── validation_evaluation.png                     # Validation Dice/IoU distributions
     ├── baseline_comparison.png                       # U-Net vs Otsu visual comparison
